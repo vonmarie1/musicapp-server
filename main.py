@@ -1,10 +1,18 @@
 from fastapi import FastAPI
-from models.base import Base
 from routes import auth
-from database import engine
-
+from models.user import router as user_router
+from fastapi.middleware.cors import CORSMiddleware  
 app = FastAPI()
 
-app.include_router(auth.router, prefix='/auth')
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-Base.metadata.create_all(engine)
+app.include_router(auth.router, prefix='/auth')
+app.include_router(user_router, prefix='/users')  # Include user routes
+
+print("Backend is running with Firestore")

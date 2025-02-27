@@ -1,13 +1,12 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+import firebase_admin
+from firebase_admin import credentials, firestore
 
-DATABASE_URL = 'postgresql://postgres:1234@localhost:5432/musicapp'
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit = False, autoflush=False, bind=engine)
+# Initialize Firebase
+cred = credentials.Certificate("service-account.json")  # Make sure this file is correct
+firebase_admin.initialize_app(cred)
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# Firestore client
+db = firestore.client()
+
+def get_firestore_db():
+    return db

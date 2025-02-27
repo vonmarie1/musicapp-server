@@ -1,13 +1,9 @@
-import random
 import uuid
 import bcrypt
 from fastapi import Depends, HTTPException
-import requests
-from database import get_db
-from models.user import User
+from database import get_firestore_db
 from schmas.usercreate import UserCreate
 from fastapi import APIRouter
-from sqlalchemy.orm import Session
 from schmas.login import UserLogin
 import jwt
 
@@ -16,45 +12,55 @@ router = APIRouter()
 
 
 @router.post('/signup', status_code=201)
-def signup_user(user: UserCreate, db: Session = Depends(get_db)):
-    # Check if the user already exists
-    user_db = db.query(User).filter(User.email == user.email).first()
-    if user_db:
-        raise HTTPException(400, 'User already exists')
+def signup_user(user: UserCreate):
+    db = get_firestore_db()
+    users_ref = db.collection("users")
 
-    # Hash the password
-    hashed_password = bcrypt.hashpw(user.password.encode(), bcrypt.gensalt())
+    # Check if user already exists
+    user_doc = users_ref.where("email", "==", user.email).stream()
+    if any(user_doc):
+        raise HTTPException(400, "User already exists")
 
-    # Create a new user object
-    new_user = User(
-        id=str(uuid.uuid4()),  # Generate a unique ID
-        name=user.name,
-        email=user.email,
-        password=hashed_password  # Store hashed password
-    )
+    hashed_password = bcrypt.hashpw(user.password.encode(), bcrypt.gensalt()).decode()
+    user_id = str(uuid.uuid4())
 
-    # Save user to database
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    try:
+        users_ref.document(user_id).set({
+            "name": user.name,
+            "email": user.email,
+            "password": hashed_password
+        })
+        print(f"✅ User {user.name} saved to Firestore with ID {user_id}")
+    except Exception as e:
+        print(f"❌ Firestore Write Error: {e}")
 
-    # Return a success response
-    return {"message": "User created successfully", "user": {"id": new_user.id, "name": new_user.name, "email": new_user.email}}
+    return {"message": "User created successfully", "user": {"id": user_id, "name": user.name, "email": user.email}}
+
+
 
 @router.post('/login')
-def login_user(user: UserLogin, db: Session = Depends(get_db)):
-      
-      user_db = db.query(User).filter(User.email == user.email).first()
+def login_user(user: UserLogin):
+    db = get_firestore_db()
+    users_ref = db.collection("users")
 
-      if not user_db:
-            raise HTTPException(400, 'User does not exist')
-      
-      is_match = bcrypt.checkpw(user.password.encode(), user_db.password)
+    # Find user by email
+    user_doc = users_ref.where("email", "==", user.email).stream()
+    user_data = None
+    for doc in user_doc:
+        user_data = doc.to_dict()
+        user_data["id"] = doc.id
+        break
 
-      if not is_match:
-            raise HTTPException(400, 'Incorrect password')
+    if not user_data:
+        raise HTTPException(400, 'User does not exist')
 
-      token = jwt.encode({'id': user_db.id}, 'password_key')
-      
-      return {'token': token, 'user': user_db}
-      
+    # Check password
+    is_match = bcrypt.checkpw(user.password.encode(), user_data["password"].encode())
+
+    if not is_match:
+        raise HTTPException(400, 'Incorrect password')
+
+    # Generate JWT token
+    token = jwt.encode({'id': user_data["id"]}, 'password_key')
+
+    return {'token': token, 'user': user_data}
