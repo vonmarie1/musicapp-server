@@ -16,25 +16,32 @@ def signup_user(user: UserCreate):
     db = get_firestore_db()
     users_ref = db.collection("users")
 
-    # Check if user already exists
-    user_doc = users_ref.where("email", "==", user.email).stream()
-    if any(user_doc):
-        raise HTTPException(400, "User already exists")
-
-    hashed_password = bcrypt.hashpw(user.password.encode(), bcrypt.gensalt()).decode()
-    user_id = str(uuid.uuid4())
-
     try:
+        
+        print("🔥 Connecting to Firestore...")
+
+        
+        user_doc = users_ref.where("email", "==", user.email).stream()
+        if any(user_doc):
+            print("❌ User already exists")
+            raise HTTPException(400, "User already exists")
+
+        hashed_password = bcrypt.hashpw(user.password.encode(), bcrypt.gensalt()).decode()
+        user_id = str(uuid.uuid4())
+
+        
         users_ref.document(user_id).set({
             "name": user.name,
             "email": user.email,
             "password": hashed_password
         })
-        print(f"✅ User {user.name} saved to Firestore with ID {user_id}")
+
+        print(f"✅ User {user.name} added to Firestore with ID {user_id}")
+        return {"message": "User created successfully", "user": {"id": user_id, "name": user.name, "email": user.email}}
+
     except Exception as e:
         print(f"❌ Firestore Write Error: {e}")
-
-    return {"message": "User created successfully", "user": {"id": user_id, "name": user.name, "email": user.email}}
+        raise HTTPException(500, "Failed to save user to Firestore")
 
 
 
@@ -43,7 +50,7 @@ def login_user(user: UserLogin):
     db = get_firestore_db()
     users_ref = db.collection("users")
 
-    # Find user by email
+    
     user_doc = users_ref.where("email", "==", user.email).stream()
     user_data = None
     for doc in user_doc:
@@ -54,13 +61,14 @@ def login_user(user: UserLogin):
     if not user_data:
         raise HTTPException(400, 'User does not exist')
 
-    # Check password
+    
     is_match = bcrypt.checkpw(user.password.encode(), user_data["password"].encode())
 
     if not is_match:
         raise HTTPException(400, 'Incorrect password')
 
-    # Generate JWT token
+    
     token = jwt.encode({'id': user_data["id"]}, 'password_key')
 
     return {'token': token, 'user': user_data}
+
