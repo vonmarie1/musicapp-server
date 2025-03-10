@@ -2,15 +2,47 @@ import logging
 import uuid
 import bcrypt
 from fastapi import Depends, HTTPException
+from pydantic import BaseModel
 from database import get_firestore_db
 from schmas.usercreate import UserCreate
 from fastapi import APIRouter
 from schmas.login import UserLogin
 import jwt
+import firebase_admin 
+from firebase_admin import auth
 
 
 router = APIRouter()
 
+
+class EmailVerificationRequest(BaseModel):
+    email: str
+
+@router.post("/send-verification")
+async def send_verification_email(request: EmailVerificationRequest):
+    try:
+        user = auth.get_user_by_email(request.email)
+        if user.email_verified:
+            return {"message": "Email already verified"}
+        
+        verification_link = auth.generate_email_verification_link(request.email)
+        # Here you would typically send this link via email
+        # For now, we'll just return it in the response
+        return {"verification_link": verification_link}
+    except auth.UserNotFoundError:
+        raise HTTPException(status_code=404, detail="User not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/check-verification/{user_id}")
+async def check_email_verification(user_id: str):
+    try:
+        user = auth.get_user(user_id)
+        return {"email_verified": user.email_verified}
+    except auth.UserNotFoundError:
+        raise HTTPException(status_code=404, detail="User not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post('/signup', status_code=201)

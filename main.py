@@ -12,6 +12,8 @@ import yt_dlp
 
 app = FastAPI()
 app.include_router(auth_router, prefix="/auth")
+app.include_router(auth_router, prefix="/auth")
+app.include_router(auth_router, prefix="/email")
 app.add_middleware(
   CORSMiddleware,
   allow_origins=["*"],  # In production, replace with your Flutter app's domain
