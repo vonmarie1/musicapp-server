@@ -1,3 +1,4 @@
+import logging
 import uuid
 import bcrypt
 from fastapi import Depends, HTTPException
@@ -6,6 +7,7 @@ from schmas.usercreate import UserCreate
 from fastapi import APIRouter
 from schmas.login import UserLogin
 import jwt
+
 
 router = APIRouter()
 
@@ -71,4 +73,5 @@ def login_user(user: UserLogin):
     token = jwt.encode({'id': user_data["id"]}, 'password_key')
 
     return {'token': token, 'user': user_data}
+
 
