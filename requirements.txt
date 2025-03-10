@@ -33,7 +33,6 @@ httptools==0.6.4
 httpx==0.28.1
 idna==3.10
 Jinja2==3.1.6
-macholib @ file:///AppleInternal/Library/BuildRoots/2c89a47b-9dd5-11ef-938f-6e654a286000/Library/Caches/com.apple.xbs/Sources/python3/macholib-1.15.2-py2.py3-none-any.whl
 markdown-it-py==3.0.0
 MarkupSafe==3.0.2
 mdurl==0.1.2
