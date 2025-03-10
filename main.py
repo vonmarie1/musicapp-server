@@ -2,7 +2,7 @@ import logging
 from fastapi import FastAPI, HTTPException, Depends
 import requests
 from fastapi.middleware.cors import CORSMiddleware
-from routes.auth import router as auth_router 
+from routes.auth import EmailVerificationRequest, router as auth_router 
 from firebase_admin import auth
 import firebase_admin
 from firebase_admin import credentials
@@ -13,7 +13,7 @@ import yt_dlp
 app = FastAPI()
 app.include_router(auth_router, prefix="/auth")
 app.include_router(auth_router, prefix="/auth")
-app.include_router(auth_router, prefix="/email")
+app.include_router(EmailVerificationRequest, prefix="/auth")
 app.add_middleware(
   CORSMiddleware,
   allow_origins=["*"],  # In production, replace with your Flutter app's domain
