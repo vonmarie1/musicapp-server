@@ -11,9 +11,7 @@ import jwt
 import firebase_admin 
 from firebase_admin import auth
 
-
 router = APIRouter()
-
 
 class EmailVerificationRequest(BaseModel):
     email: str
@@ -44,17 +42,14 @@ async def check_email_verification(user_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @router.post('/signup', status_code=201)
 def signup_user(user: UserCreate):
     db = get_firestore_db()
     users_ref = db.collection("users")
 
     try:
-        
         print("🔥 Connecting to Firestore...")
 
-        
         user_doc = users_ref.where("email", "==", user.email).stream()
         if any(user_doc):
             print("❌ User already exists")
@@ -63,11 +58,11 @@ def signup_user(user: UserCreate):
         hashed_password = bcrypt.hashpw(user.password.encode(), bcrypt.gensalt()).decode()
         user_id = str(uuid.uuid4())
 
-        
         users_ref.document(user_id).set({
             "name": user.name,
             "email": user.email,
-            "password": hashed_password
+            "password": hashed_password,
+            "email_verified": False
         })
 
         print(f"✅ User {user.name} added to Firestore with ID {user_id}")
@@ -77,14 +72,11 @@ def signup_user(user: UserCreate):
         print(f"❌ Firestore Write Error: {e}")
         raise HTTPException(500, "Failed to save user to Firestore")
 
-
-
 @router.post('/login')
 def login_user(user: UserLogin):
     db = get_firestore_db()
     users_ref = db.collection("users")
 
-    
     user_doc = users_ref.where("email", "==", user.email).stream()
     user_data = None
     for doc in user_doc:
@@ -95,15 +87,15 @@ def login_user(user: UserLogin):
     if not user_data:
         raise HTTPException(400, 'User does not exist')
 
-    
     is_match = bcrypt.checkpw(user.password.encode(), user_data["password"].encode())
 
     if not is_match:
         raise HTTPException(400, 'Incorrect password')
 
-    
+    if not user_data.get("email_verified", False):
+        raise HTTPException(400, 'Email not verified')
+
     token = jwt.encode({'id': user_data["id"]}, 'password_key')
 
     return {'token': token, 'user': user_data}
-
 
