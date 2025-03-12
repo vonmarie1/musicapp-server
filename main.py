@@ -4,7 +4,7 @@ import requests
 from fastapi.middleware.cors import CORSMiddleware
 from routes.auth import router as auth_router
 from models.user import router as user_router
-from firebase_admin import auth, credentials, initialize_app, exceptions
+from firebase_admin import auth, credentials, initialize_app, exceptions, firestore
 from database import db
 
 # Initialize logging
@@ -74,3 +74,20 @@ def get_recommendations(current_user: dict = Depends(get_current_user)):
 @app.get("/")
 def read_root():
     return {"message": "API is running"}
+
+@app.delete("/delete-user")
+async def delete_user(uid: str, email: str):
+    try:
+        auth.delete_user(uid)
+
+        users_ref = db.collection("users")
+        docs = users_ref.where("email", "==", email).stream()
+        for doc in docs:
+            doc.reference.delete()
+        return {"message": f"User {email} delete successfuly from Firebase Authentication and Firestore."}
+    
+    except auth.UserNotFoundError:
+        raise HTTPException(status_code=404, detail="User not found broskie.")
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
